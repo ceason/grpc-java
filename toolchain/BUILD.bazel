@@ -1,0 +1,244 @@
+load(":java_grpc.bzl", "java_grpc_toolchain")
+
+FLAVORS = {
+    "normal": {
+        "deps": [
+            "@com_google_guava_guava//jar",
+            "@com_google_protobuf//:protobuf_java",
+            "@io_grpc_grpc_java//core",
+            "@io_grpc_grpc_java//protobuf",
+            "@io_grpc_grpc_java//stub",
+            "@io_grpc_grpc_java//stub:javax_annotation",
+        ],
+        "exports": [
+            "@com_google_protobuf//:protobuf_java",
+            "@io_grpc_grpc_java//core",
+            "@io_grpc_grpc_java//stub",
+        ],
+    },
+    "lite": {
+        "deps": [
+            "@com_google_guava_guava//jar",
+            "@io_grpc_grpc_java//core",
+            "@io_grpc_grpc_java//protobuf-lite",
+            "@io_grpc_grpc_java//stub",
+            "@io_grpc_grpc_java//stub:javax_annotation",
+        ],
+        "exports": [
+            "@io_grpc_grpc_java//core",
+            "@io_grpc_grpc_java//protobuf-lite",
+            "@io_grpc_grpc_java//stub",
+        ],
+    },
+}
+
+PLATFORMS = {
+    "default": {
+        "runtime_deps": [
+            "@io_grpc_grpc_java//netty",
+        ],
+        "target_compatible_with": [
+            "@bazel_tools//platforms:default_platform",
+        ],
+    },
+    "android": {
+        "runtime_deps": [
+            "@io_grpc_grpc_java//okhttp",
+        ],
+        "target_compatible_with": [
+            "@bazel_tools//platforms:android",
+        ],
+    },
+}
+
+[toolchain_type(
+    name = "%s_toolchain_type" % f,
+) for f in FLAVORS.keys()]
+
+[java_grpc_toolchain(
+    name = "%s_%s" % (f, p),
+    flavor = f,
+    runtime_deps = PLATFORMS[p]["runtime_deps"],
+    exports = FLAVORS[f]["exports"],
+    deps = FLAVORS[f]["deps"],
+    protoc = "@com_google_protobuf//:protoc",
+    protoc_grpc_plugin = "//compiler:grpc_java_plugin",
+) for f in FLAVORS.keys() for p in PLATFORMS.keys()]
+
+[toolchain(
+    name = "%s_%s_toolchain" % (f, p),
+    exec_compatible_with = ["@bazel_tools//platforms:host_platform"],
+    target_compatible_with = PLATFORMS[p]["target_compatible_with"],
+    toolchain = ":%s_%s" % (f, p),
+    toolchain_type = ":%s_toolchain_type" % f,
+) for f in FLAVORS.keys() for p in PLATFORMS.keys()]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#DEPS = {
+#    "normal": [
+#        "@com_google_guava_guava//jar",
+#        "@com_google_protobuf//:protobuf_java",
+#        "@io_grpc_grpc_java//core",
+#        "@io_grpc_grpc_java//protobuf",
+#        "@io_grpc_grpc_java//stub",
+#        "@io_grpc_grpc_java//stub:javax_annotation",
+#    ],
+#    "lite": [
+#        "@com_google_guava_guava//jar",
+#        "@io_grpc_grpc_java//core",
+#        "@io_grpc_grpc_java//protobuf-lite",
+#        "@io_grpc_grpc_java//stub",
+#        "@io_grpc_grpc_java//stub:javax_annotation",
+#    ],
+#}
+#
+#EXPORTS = {
+#    "normal": [
+#        "@com_google_protobuf//:protobuf_java",
+#        "@io_grpc_grpc_java//core",
+#        "@io_grpc_grpc_java//stub",
+#    ],
+#    "lite": [
+#        "@io_grpc_grpc_java//core",
+#        "@io_grpc_grpc_java//protobuf-lite",
+#        "@io_grpc_grpc_java//stub",
+#    ],
+#}
+#
+#RUNTIME_DEPS = {
+#    "default": ["@io_grpc_grpc_java//netty"],
+#    "android": ["@io_grpc_grpc_java//okhttp"],
+#}
+#
+#[java_grpc_toolchain(
+#    name = "%s_%s" % (flavor, platform_),
+#    flavor = flavor,
+#    exports = EXPORTS[flavor],
+#    runtime_deps = RUNTIME_DEPS[platform_],
+#    deps = NORMAL_DEPS[flavor],
+#) for platform_ in PLATFORMS for flavor in FLAVORS]
+#
+#[toolchain(
+#    name = "%s_%s_toolchain" % (flavor, platform_),
+#    exec_compatible_with = ["@bazel_tools//platforms:host_platform"],
+#    toolchain = ":%s_%s" % (flavor, platform_),
+#    toolchain_type = ":%s_toolchain_type" % flavor,
+#) for platform_ in PLATFORMS for flavor in FLAVORS]
+#
+#NORMAL_DEPS = [
+#    "@com_google_guava_guava//jar",
+#    "@com_google_protobuf//:protobuf_java",
+#    "@io_grpc_grpc_java//core",
+#    "@io_grpc_grpc_java//protobuf",
+#    "@io_grpc_grpc_java//stub",
+#    "@io_grpc_grpc_java//stub:javax_annotation",
+#]
+#
+#NORMAL_EXPORTS = [
+#    "@com_google_protobuf//:protobuf_java",
+#    "@io_grpc_grpc_java//core",
+#    "@io_grpc_grpc_java//stub",
+#]
+#
+#LITE_DEPS = [
+#    "@com_google_guava_guava//jar",
+#    "@io_grpc_grpc_java//core",
+#    "@io_grpc_grpc_java//protobuf-lite",
+#    "@io_grpc_grpc_java//stub",
+#    "@io_grpc_grpc_java//stub:javax_annotation",
+#]
+#
+#LITE_EXPORTS = [
+#    "@io_grpc_grpc_java//core",
+#    "@io_grpc_grpc_java//protobuf-lite",
+#    "@io_grpc_grpc_java//stub",
+#]
+#
+#RUNTIME_DEPS = [
+#    "@io_grpc_grpc_java//netty",
+#]
+#
+#ANDROID_RUNTIME_DEPS = [
+#    "@io_grpc_grpc_java//okhttp",
+#]
+#
+#java_grpc_toolchain(
+#    name = "normal",
+#    flavor = "normal",
+#    exports = NORMAL_EXPORTS,
+#    runtime_deps = RUNTIME_DEPS,
+#    deps = NORMAL_DEPS,
+#)
+#
+#java_grpc_toolchain(
+#    name = "normal_android",
+#    flavor = "normal",
+#    exports = NORMAL_EXPORTS,
+#    runtime_deps = ANDROID_RUNTIME_DEPS,
+#    deps = NORMAL_DEPS,
+#)
+#
+#java_grpc_toolchain(
+#    name = "lite",
+#    flavor = "lite",
+#    exports = LITE_EXPORTS,
+#    runtime_deps = RUNTIME_DEPS,
+#    deps = LITE_DEPS,
+#)
+#
+#java_grpc_toolchain(
+#    name = "lite_android",
+#    flavor = "lite",
+#    exports = LITE_EXPORTS,
+#    runtime_deps = ANDROID_RUNTIME_DEPS,
+#    deps = LITE_DEPS,
+#)
