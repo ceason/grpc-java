@@ -10,8 +10,17 @@ _TOOLCHAINS = {
 }
 
 def _aspect_impl(target, ctx):
-    print(target)
-    print(ctx)
+    tc = ctx.toolchains[ctx.attr._toolchain].grpcinfo
+    proto_info = target.proto
+    # proto_info = target[ProtoInfo] # <- update provider when ProtoInfo is a real thing
+
+    java_info = tc.compile(
+        ctx,
+        toolchain = tc,
+        proto_info = proto_info,
+    )
+    print(java_info)
+
     fail("asdfbbq")
 
 def _java_grpc_library_impl(ctx):
@@ -19,19 +28,11 @@ def _java_grpc_library_impl(ctx):
     """
     tc = ctx.toolchains[ctx.attr._toolchain]
 
-#_ASPECTS = {flavor.name: aspect(
-#    _aspect_impl,
-#    toolchains = [flavor.toolchain],
-#    attr_aspects = ["deps"],
-#    attrs = {
-#        "_toolchain": attr.string(default = flavor.toolchain),
-#    },
-#) for flavor in _FLAVORS}
-
 _lite_aspect = aspect(
     _aspect_impl,
     toolchains = [_TOOLCHAINS["lite"]],
     attr_aspects = ["deps"],
+    fragments = ["java"],
     attrs = {"_toolchain": attr.string(default = _TOOLCHAINS["lite"])},
 )
 
@@ -39,21 +40,9 @@ _normal_aspect = aspect(
     _aspect_impl,
     toolchains = [_TOOLCHAINS["normal"]],
     attr_aspects = ["deps"],
+    fragments = ["java"],
     attrs = {"_toolchain": attr.string(default = _TOOLCHAINS["normal"])},
 )
-
-#_RULES = {flavor.name: rule(
-#    _java_grpc_library_impl,
-#    toolchains = [flavor.toolchain],
-#    attrs = {
-#        "_toolchain": attr.string(default = flavor.toolchain),
-#        "deps": attr.label_list(
-#            mandatory = True,
-#            providers = ["proto"],
-#            aspects = [_ASPECTS[flavor.name]],
-#        ),
-#    },
-#) for flavor in _FLAVORS}
 
 java_grpc_library = rule(
     _java_grpc_library_impl,
