@@ -22,23 +22,17 @@ def _path_ignoring_repository(f):
 
 def _compile(ctx, toolchain = None, deps = [], proto_info = None):
     """
+    deps = <Target>s with JavaInfo. Compiled dependencies
     """
 
-    tgt_name = ""
-    if hasattr(ctx.attr, "name"):
-        tgt_name = ctx.attr.name
-    else:
-        tgt_name = ctx.rule.attr.name
+    # find the rule ctx (since this might be invoked from an aspect)
+    rule_ctx = ctx
+    if hasattr(ctx, "rule"):
+        rule_ctx = ctx.rule
 
-    java_srcs = ctx.actions.declare_file("%s/%s-sources.jar" % (toolchain.output_path, tgt_name))
-    grpc_srcs = ctx.actions.declare_file("%s/%s-grpc-sources.jar" % (toolchain.output_path, tgt_name))
-    compiled_jar = ctx.actions.declare_file("%s/%s-grpc.jar" % (toolchain.output_path, tgt_name))
-
-    # compile ProtoInfo.direct_sources + ProtoInfo.transitive_descriptor_sets
-    # - to a java(lite?) src jar
-    # - to a grpc(lite?) src jar
-
-    protoc = toolchain.protoc.files_to_run.executable
+    java_srcs = ctx.actions.declare_file("%s/%s-java-sources.jar" % (toolchain.output_path, rule_ctx.attr.name))
+    grpc_srcs = ctx.actions.declare_file("%s/%s-grpc-sources.jar" % (toolchain.output_path, rule_ctx.attr.name))
+    compiled_jar = ctx.actions.declare_file("%s/%s.jar" % (toolchain.output_path, rule_ctx.attr.name))
 
     descriptors = depset(
         direct = [proto_info.direct_descriptor_set],
@@ -46,9 +40,11 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
     )
 
     # generate java & grpc srcs
+    protoc = toolchain.protoc.files_to_run.executable
     grpc_plugin = toolchain.protoc_grpc_plugin.files_to_run.executable
     maybe_javalite = []
     proto_args = ctx.actions.args()
+    proto_args.add_all("--descriptor_set_in", descriptors)
     proto_args.add("--plugin=protoc-gen-grpc-java=%s" % grpc_plugin.path)
     if toolchain.flavor == "lite":
         javalite = toolchain.protoc_lite_plugin.files_to_run.executable
@@ -60,36 +56,50 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
         proto_args.add("--java_out=%s" % java_srcs.path)
         proto_args.add("--grpc-java_out=%s" % grpc_srcs.path)
 
-    #    proto_args.add_all("--descriptor_set_in", descriptors)
-    #    proto_args.add_all(proto_info.direct_sources)
-    proto_args.add_all(["-I%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.transitive_imports])
+    # todo: figure out how to handle 'proto_source_root' (ie properly calculate src names)
     proto_args.add_all([_path_ignoring_repository(src) for src in proto_info.direct_sources])
     ctx.actions.run(
         inputs = depset(
-            direct = [protoc, grpc_plugin] + maybe_javalite + proto_info.direct_sources,
-            transitive = [
-                proto_info.transitive_descriptor_sets,
-                proto_info.transitive_sources,
-            ],
+            direct = [protoc, grpc_plugin] + maybe_javalite,
+            transitive = [descriptors],
         ),
         outputs = [java_srcs, grpc_srcs],
         executable = protoc,
         arguments = [proto_args],
     )
 
-    java_info = java_common.compile(
+    sources_jar = java_common.pack_sources(
+        ctx.actions,
+        output_jar = compiled_jar,
+        source_jars = [grpc_srcs, java_srcs],
+        java_toolchain = toolchain.java_toolchain,
+        host_javabase = toolchain.host_javabase,
+    )
+    compile_deps = [
+        dep[JavaInfo]
+        for dep in toolchain.deps + deps
+    ]
+    java_common.compile(
         ctx,
-        source_jars = [
-            java_srcs,
-            grpc_srcs,
-        ],
-        deps = [
-            dep[JavaInfo]
-            for dep in toolchain.deps + deps
-        ],
+        source_jars = [sources_jar],
+        deps = compile_deps,
         output = compiled_jar,
         java_toolchain = toolchain.java_toolchain,
         host_javabase = toolchain.host_javabase,
+    )
+    java_info = JavaInfo(
+        output_jar = compiled_jar,
+        compile_jar = compiled_jar,
+        source_jar = sources_jar,
+        exports = [
+            dep[JavaInfo]  # todo: is this right??
+            for dep in deps + toolchain.exports
+        ],
+        runtime_deps = [
+            dep[JavaInfo]
+            for dep in toolchain.runtime_deps
+        ],
+        deps = compile_deps,
     )
     return java_info
 
@@ -142,12 +152,12 @@ grpc_java_toolchain = rule(
 )
 
 def grpc_java_register_toolchains():
-    repo = "@io_grpc_grpc_java"
-
-    #    native.register_toolchains("@io_grpc_grpc_java//toolchain:all")
+    # android toolchains are registered first
     native.register_toolchains(
-        repo + "//toolchain:normal_android_toolchain",
-        repo + "//toolchain:lite_android_toolchain",
-        repo + "//toolchain:normal_default_toolchain",
-        repo + "//toolchain:lite_default_toolchain",
+        "@io_grpc_grpc_java//toolchain:normal_android_toolchain",
+        "@io_grpc_grpc_java//toolchain:normal_default_toolchain",
+    )
+    native.register_toolchains(
+        "@io_grpc_grpc_java//toolchain:lite_android_toolchain",
+        "@io_grpc_grpc_java//toolchain:lite_default_toolchain",
     )
