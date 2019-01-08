@@ -48,7 +48,6 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
     # generate java srcs
     maybe_javalite = []
     proto_args = ctx.actions.args()
-    proto_args.add(protoc)
     if toolchain.flavor == "lite":
         javalite = toolchain.protoc_lite_plugin.files_to_run.executable
         maybe_javalite += [javalite]
@@ -57,10 +56,9 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
     else:
         proto_args.add("--java_out=%s" % java_srcs.path)
 #    proto_args.add_all("--descriptor_set_in", descriptors)
-#    proto_args.add_all(["-I%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.transitive_imports])
-#    proto_args.add_all([_path_ignoring_repository(src) for src in proto_info.direct_sources])
-    proto_args.add_all(proto_info.direct_sources)
-#    proto_args.add_all(["%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.direct_sources])
+#    proto_args.add_all(proto_info.direct_sources)
+    proto_args.add_all(["-I%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.transitive_imports])
+    proto_args.add_all([_path_ignoring_repository(src) for src in proto_info.direct_sources])
     ctx.actions.run(
         inputs = depset(
             direct = [protoc] + maybe_javalite + proto_info.direct_sources,
@@ -73,7 +71,6 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
 
     # generate grpc srcs
     grpc_args = ctx.actions.args()
-    grpc_args.add(protoc)
     grpc_plugin = toolchain.protoc_grpc_plugin.files_to_run.executable
     grpc_args.add("--plugin=protoc-gen-grpc-java=%s" % grpc_plugin.path)
     if toolchain.flavor == "lite":
@@ -81,9 +78,9 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
     else:
         grpc_args.add("--grpc-java_out=%s" % grpc_srcs.path)
 #    grpc_args.add_all("--descriptor_set_in", descriptors)
-#    grpc_args.add_all(["-I%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.transitive_imports])
-#    grpc_args.add_all([_path_ignoring_repository(src) for src in proto_info.direct_sources])
-    grpc_args.add_all(proto_info.direct_sources)
+#    grpc_args.add_all(proto_info.direct_sources)
+    grpc_args.add_all(["-I%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.transitive_imports])
+    grpc_args.add_all([_path_ignoring_repository(src) for src in proto_info.direct_sources])
 #    grpc_args.add_all(["%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.direct_sources])
     ctx.actions.run(
         inputs = depset(
@@ -98,7 +95,7 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
     java_info = java_common.compile(
         ctx,
         source_jars = [
-#            java_srcs,
+            java_srcs,
             grpc_srcs,
         ],
         deps = [
