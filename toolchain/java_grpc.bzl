@@ -45,51 +45,36 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
         transitive = [proto_info.transitive_descriptor_sets],
     )
 
-    # generate java srcs
+    # generate java & grpc srcs
+    grpc_plugin = toolchain.protoc_grpc_plugin.files_to_run.executable
     maybe_javalite = []
     proto_args = ctx.actions.args()
+    proto_args.add("--plugin=protoc-gen-grpc-java=%s" % grpc_plugin.path)
     if toolchain.flavor == "lite":
         javalite = toolchain.protoc_lite_plugin.files_to_run.executable
         maybe_javalite += [javalite]
         proto_args.add("--plugin=protoc-gen-javalite=%s" % javalite.path)
         proto_args.add("--javalite_out=%s" % java_srcs.path)
+        proto_args.add("--grpc-java_out=lite:%s" % grpc_srcs.path)
     else:
         proto_args.add("--java_out=%s" % java_srcs.path)
-#    proto_args.add_all("--descriptor_set_in", descriptors)
-#    proto_args.add_all(proto_info.direct_sources)
+        proto_args.add("--grpc-java_out=%s" % grpc_srcs.path)
+
+    #    proto_args.add_all("--descriptor_set_in", descriptors)
+    #    proto_args.add_all(proto_info.direct_sources)
     proto_args.add_all(["-I%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.transitive_imports])
     proto_args.add_all([_path_ignoring_repository(src) for src in proto_info.direct_sources])
     ctx.actions.run(
         inputs = depset(
-            direct = [protoc] + maybe_javalite + proto_info.direct_sources,
-            transitive = [proto_info.transitive_descriptor_sets],
+            direct = [protoc, grpc_plugin] + maybe_javalite + proto_info.direct_sources,
+            transitive = [
+                proto_info.transitive_descriptor_sets,
+                proto_info.transitive_sources,
+            ],
         ),
-        outputs = [java_srcs],
+        outputs = [java_srcs, grpc_srcs],
         executable = protoc,
         arguments = [proto_args],
-    )
-
-    # generate grpc srcs
-    grpc_args = ctx.actions.args()
-    grpc_plugin = toolchain.protoc_grpc_plugin.files_to_run.executable
-    grpc_args.add("--plugin=protoc-gen-grpc-java=%s" % grpc_plugin.path)
-    if toolchain.flavor == "lite":
-        grpc_args.add("--grpc-java_out=lite:%s" % grpc_srcs.path)
-    else:
-        grpc_args.add("--grpc-java_out=%s" % grpc_srcs.path)
-#    grpc_args.add_all("--descriptor_set_in", descriptors)
-#    grpc_args.add_all(proto_info.direct_sources)
-    grpc_args.add_all(["-I%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.transitive_imports])
-    grpc_args.add_all([_path_ignoring_repository(src) for src in proto_info.direct_sources])
-#    grpc_args.add_all(["%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.direct_sources])
-    ctx.actions.run(
-        inputs = depset(
-            direct = [protoc, grpc_plugin] + proto_info.direct_sources,
-            transitive = [proto_info.transitive_descriptor_sets],
-        ),
-        outputs = [grpc_srcs],
-        executable = protoc,
-        arguments = [grpc_args],
     )
 
     java_info = java_common.compile(
