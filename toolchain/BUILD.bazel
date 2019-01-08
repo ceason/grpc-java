@@ -56,7 +56,7 @@ PLATFORMS = {
     flavor = f,
     protoc = "@com_google_protobuf//:protoc",
     protoc_grpc_plugin = "//compiler:grpc_java_plugin",
-    protoc_lite_plugin = "@com_google_protobuf//:protobuf_lite" if f == "lite" else None,
+    protoc_lite_plugin = "@com_google_protobuf_javalite//:protoc_gen_javalite" if f == "lite" else None,
     exports = FLAVORS[f]["exports"],
     runtime_deps = PLATFORMS[p]["runtime_deps"],
     deps = FLAVORS[f]["deps"],
