@@ -95,7 +95,7 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
         source_jar = sources_jar,
         exports = [
             dep[JavaInfo]  # todo: is this right??
-            for dep in deps + toolchain.exports
+            for dep in deps
         ],
         runtime_deps = [
             dep[JavaInfo]
