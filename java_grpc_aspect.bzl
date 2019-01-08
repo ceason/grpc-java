@@ -9,25 +9,39 @@ _TOOLCHAINS = {
     for flavor in ["lite", "normal"]
 }
 
+_GeneratedFiles = provider(
+    fields = {
+        "jars": "Depset<File> of compiled jars",
+    },
+)
+
 def _aspect_impl(target, ctx):
+    # proto_info = target[ProtoInfo] # <- update provider when ProtoInfo is a real thing
     proto_info = target.proto
 
-    # proto_info = target[ProtoInfo] # <- update provider when ProtoInfo is a real thing
+    transitive_jars = []
+    for dep in ctx.rule.attr.deps:
+        transitive_jars += [dep[_GeneratedFiles].jars]
+
     if len(proto_info.direct_sources) > 0:
         tc = ctx.toolchains[ctx.attr._toolchain].grpcinfo
-        java_info = tc.compile(
+        java_info, jar = tc.compile(
             ctx,
             toolchain = tc,
             proto_info = proto_info,
             deps = ctx.rule.attr.deps,
         )
-        return [java_info]
+        return [java_info, _GeneratedFiles(
+            jars = depset(direct = [jar], transitive = transitive_jars),
+        )]
     else:
         java_info = java_common.merge([
             dep[JavaInfo]
             for dep in ctx.rule.attr.deps
         ])
-        return [java_info]
+        return [java_info, _GeneratedFiles(
+            jars = depset(transitive = transitive_jars),
+        )]
 
 _normal_aspect = aspect(
     _aspect_impl,
@@ -53,7 +67,10 @@ def _java_grpc_library_impl(ctx):
     return [
         java_info,
         DefaultInfo(
-            files = java_info.full_compile_jars,
+            files = depset(transitive = [
+                dep[_GeneratedFiles].jars
+                for dep in ctx.attr.deps
+            ]),
             runfiles = ctx.runfiles(files = java_info.transitive_runtime_jars.to_list()),
         ),
     ]

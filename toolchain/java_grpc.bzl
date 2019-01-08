@@ -103,7 +103,7 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
         ],
         deps = compile_deps,
     )
-    return java_info
+    return java_info, compiled_jar
 
 def _grpc_java_toolchain_impl(ctx):
     tc_info = platform_common.ToolchainInfo(
