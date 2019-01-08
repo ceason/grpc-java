@@ -52,9 +52,11 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
         proto_args.add("--plugin=protoc-gen-javalite=%s" % javalite.path)
         proto_args.add("--javalite_out=%s" % java_srcs.path)
         proto_args.add("--grpc-java_out=lite:%s" % grpc_srcs.path)
-    else:
+    elif toolchain.flavor == "normal":
         proto_args.add("--java_out=%s" % java_srcs.path)
         proto_args.add("--grpc-java_out=%s" % grpc_srcs.path)
+    else:
+        fail("Unknown flavor '%s'" % toolchain.flavor)
 
     # todo: figure out how to handle 'proto_source_root' (ie properly calculate src names)
     proto_args.add_all([_path_ignoring_repository(src) for src in proto_info.direct_sources])
