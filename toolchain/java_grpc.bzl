@@ -40,6 +40,11 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
 
     protoc = toolchain.protoc.files_to_run.executable
 
+    descriptors = depset(
+        direct = [proto_info.direct_descriptor_set],
+        transitive = [proto_info.transitive_descriptor_sets],
+    )
+
     # generate java srcs
     maybe_javalite = []
     proto_args = ctx.actions.args()
@@ -51,8 +56,12 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
         proto_args.add("--javalite_out=%s" % java_srcs.path)
     else:
         proto_args.add("--java_out=%s" % java_srcs.path)
-    proto_args.add_all("--descriptor_set_in", proto_info.transitive_descriptor_sets)
+#    proto_args.add_all("--descriptor_set_in", descriptors)
+
+#    proto_args.add_all(["-I%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.transitive_imports])
+#    proto_args.add_all([_path_ignoring_repository(src) for src in proto_info.direct_sources])
     proto_args.add_all(proto_info.direct_sources)
+#    proto_args.add_all(["%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.direct_sources])
     ctx.actions.run(
         inputs = depset(
             direct = [protoc] + maybe_javalite + proto_info.direct_sources,
@@ -72,8 +81,10 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
         grpc_args.add("--grpc-java_out=lite:%s" % grpc_srcs.path)
     else:
         grpc_args.add("--grpc-java_out=%s" % grpc_srcs.path)
-    grpc_args.add_all("--descriptor_set_in", proto_info.transitive_descriptor_sets)
-    grpc_args.add_all(proto_info.direct_sources)
+    grpc_args.add_all("--descriptor_set_in", descriptors)
+
+    #    grpc_args.add_all(["-I%s=%s" % (_path_ignoring_repository(src), src.path) for src in proto_info.direct_sources])
+    grpc_args.add_all([_path_ignoring_repository(src) for src in proto_info.direct_sources])
     ctx.actions.run(
         inputs = depset(
             direct = [protoc, grpc_plugin] + proto_info.direct_sources,
@@ -86,7 +97,10 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
 
     java_info = java_common.compile(
         ctx,
-        source_jars = [java_srcs, grpc_srcs],
+        source_jars = [
+            java_srcs,
+#            grpc_srcs,
+        ],
         deps = [
             dep[JavaInfo]
             for dep in toolchain.deps + deps

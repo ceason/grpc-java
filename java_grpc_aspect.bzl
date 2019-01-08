@@ -9,24 +9,47 @@ _TOOLCHAINS = {
     for flavor in ["lite", "normal"]
 }
 
+_aspect_aggregated_stuff = provider(
+    fields = {
+        "java_infos": "depset of JavaInfos",
+    },
+)
+
 def _aspect_impl(target, ctx):
     tc = ctx.toolchains[ctx.attr._toolchain].grpcinfo
     proto_info = target.proto
     # proto_info = target[ProtoInfo] # <- update provider when ProtoInfo is a real thing
 
+    transitive = []
+    if _aspect_aggregated_stuff in target:
+        transitive += [target[_aspect_aggregated_stuff].java_infos]
     java_info = tc.compile(
         ctx,
         toolchain = tc,
         proto_info = proto_info,
     )
-    print(java_info)
-
-    fail("asdfbbq")
+    return [_aspect_aggregated_stuff(
+        java_infos = depset(
+            direct = [java_info],
+            transitive = transitive,
+        ),
+    )]
 
 def _java_grpc_library_impl(ctx):
     """
     """
-    tc = ctx.toolchains[ctx.attr._toolchain]
+    transitive = []
+    for dep in ctx.attr.deps:
+        transitive += [dep[_aspect_aggregated_stuff].java_infos]
+
+    le_java_info = java_common.merge(depset(transitive = transitive).to_list())
+    print(le_java_info)
+    return [
+        le_java_info,
+        DefaultInfo(
+            files = le_java_info.full_compile_jars,
+        ),
+    ]
 
 _lite_aspect = aspect(
     _aspect_impl,
