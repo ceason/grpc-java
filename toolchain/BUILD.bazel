@@ -1,6 +1,6 @@
 package(default_visibility = ["//visibility:public"])
 
-load(":java_grpc.bzl", "grpc_java_toolchain")
+load(":toolchains.bzl", "grpc_java_toolchain")
 
 FLAVORS = {
     "normal": {

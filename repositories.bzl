@@ -1,7 +1,7 @@
 """External dependencies for grpc-java."""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
-load("//toolchain:java_grpc.bzl", "grpc_java_register_toolchains")
+load("//toolchain:toolchains.bzl", "grpc_java_register_toolchains")
 
 def grpc_java_repositories(
         omit_com_google_api_grpc_google_common_protos = False,
