@@ -44,7 +44,7 @@ def _compile(ctx, toolchain = None, deps = [], proto_info = None):
     grpc_plugin = toolchain.protoc_grpc_plugin.files_to_run.executable
     maybe_javalite = []
     proto_args = ctx.actions.args()
-    proto_args.add_all("--descriptor_set_in", descriptors)
+    proto_args.add_joined("--descriptor_set_in", descriptors, join_with=":", omit_if_empty=True)
     proto_args.add("--plugin=protoc-gen-grpc-java=%s" % grpc_plugin.path)
     if toolchain.flavor == "lite":
         javalite = toolchain.protoc_lite_plugin.files_to_run.executable
