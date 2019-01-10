@@ -1,0 +1,48 @@
+java_library(
+    name = "platform_default_transport",
+    runtime_deps = select({
+        "@bazel_tools//platforms:android": [
+            "@io_grpc_grpc_java//okhttp",
+        ],
+        "//conditions:default": [
+            "@io_grpc_grpc_java//netty",
+        ],
+    }),
+)
+
+
+grpc_proto_compiler(
+    name = "grpc_java",
+    exports = [
+        "@com_google_protobuf//:protobuf_java",
+        "@io_grpc_grpc_java//core",
+        "@io_grpc_grpc_java//stub",
+    ],
+    deps = [
+        "@com_google_guava_guava//jar",
+        "@com_google_protobuf//:protobuf_java",
+        "@io_grpc_grpc_java//core",
+        "@io_grpc_grpc_java//protobuf",
+        "@io_grpc_grpc_java//stub",
+        "@io_grpc_grpc_java//stub:javax_annotation",
+    ],
+)
+
+grpc_proto_compiler(
+    name = "grpc_javalite",
+    grpc_plugin_opts = ["lite"],
+    java_plugin = "@com_google_protobuf_javalite//:protoc_gen_javalite",
+    exports = [
+        "@io_grpc_grpc_java//core",
+        "@io_grpc_grpc_java//protobuf-lite",
+        "@io_grpc_grpc_java//stub",
+    ],
+    deps = [
+        "@com_google_guava_guava//jar",
+        "@io_grpc_grpc_java//core",
+        "@io_grpc_grpc_java//protobuf-lite",
+        "@io_grpc_grpc_java//stub",
+        "@io_grpc_grpc_java//stub:javax_annotation",
+    ],
+)
+
