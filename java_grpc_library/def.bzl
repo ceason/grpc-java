@@ -117,6 +117,20 @@ def _aspect_impl(target, ctx):
         )],
     )
 
+def _grpc_aspect(compiler):
+    return {
+        "implementation": _aspect_impl,
+        "attr_aspects": ["deps"],
+        "fragments": ["java"],
+        "provides": ["proto_java", JavaInfo],
+        "attrs": {
+            "_compiler": attr.label(
+                providers = [_GrpcProtoCompiler],
+                default = Label(compiler),
+            ),
+        },
+    }
+
 def _rule_impl(ctx):
     # exports come from the aspect's compiler, are the same for all deps
     # so we only need to grab one
@@ -155,32 +169,8 @@ def _grpc_rule(aspect_):
         provides = ["proto_java", JavaInfo],
     )
 
-_normal_aspect = aspect(
-    _aspect_impl,
-    attr_aspects = ["deps"],
-    fragments = ["java"],
-    provides = ["proto_java", JavaInfo],
-    attrs = {
-        "_compiler": attr.label(
-            providers = [_GrpcProtoCompiler],
-            default = Label("//java_grpc_library:grpc_java"),
-        ),
-    },
-)
-
+_normal_aspect = aspect(**_grpc_aspect("//java_grpc_library:grpc_java"))
 java_grpc_library = _grpc_rule(_normal_aspect)
 
-_lite_aspect = aspect(
-    _aspect_impl,
-    attr_aspects = ["deps"],
-    fragments = ["java"],
-    provides = ["proto_java", JavaInfo],
-    attrs = {
-        "_compiler": attr.label(
-            providers = [_GrpcProtoCompiler],
-            default = Label("//java_grpc_library:grpc_javalite"),
-        ),
-    },
-)
-
+_lite_aspect = aspect(**_grpc_aspect("//java_grpc_library:grpc_javalite"))
 java_lite_grpc_library = _grpc_rule(_lite_aspect)
