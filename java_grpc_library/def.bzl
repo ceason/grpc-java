@@ -141,16 +141,13 @@ def _rule_impl(ctx):
         dep[JavaInfo]
         for dep in ctx.attr.deps + exports + ctx.attr.transport
     ])
-    return struct(
-        proto_java = java_info,
-        providers = [
-            java_info,
-            DefaultInfo(
-                files = depset(transitive = [dep[_GrpcAspectInfo].jars for dep in ctx.attr.deps]),
-                runfiles = ctx.runfiles(files = java_info.transitive_runtime_jars.to_list()),
-            ),
-        ],
-    )
+    return [
+        java_info,
+        DefaultInfo(
+            files = depset(transitive = [dep[_GrpcAspectInfo].jars for dep in ctx.attr.deps]),
+            runfiles = ctx.runfiles(files = java_info.transitive_runtime_jars.to_list()),
+        ),
+    ]
 
 def _grpc_rule(aspect_):
     return rule(
@@ -166,7 +163,7 @@ def _grpc_rule(aspect_):
                 default = ["//java_grpc_library:platform_default_transport"],
             ),
         },
-        provides = ["proto_java", JavaInfo],
+        provides = [JavaInfo],
     )
 
 _normal_aspect = aspect(**_grpc_aspect("//java_grpc_library:grpc_java"))
