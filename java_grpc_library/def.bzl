@@ -5,7 +5,7 @@ load(
     _java_lite_grpc_aspect = "java_lite_grpc_aspect",
 )
 
-def _impl(ctx):
+def _rule_impl(ctx):
     # exports come from the aspect's compiler, are the same for all deps
     # so we only need to grab one
     exports = ctx.attr.deps[0][_GrpcAspectInfo].exports
@@ -15,35 +15,20 @@ def _impl(ctx):
         dep[JavaInfo]
         for dep in ctx.attr.deps + exports + ctx.attr.transport
     ])
-    return [
-        java_info,
-        DefaultInfo(
-            files = depset(transitive = [
-                dep[_GrpcAspectInfo].jars
-                for dep in ctx.attr.deps
-            ]),
-            runfiles = ctx.runfiles(files = java_info.transitive_runtime_jars.to_list()),
-        ),
-    ]
-
-def _attrs(aspect_):
-    return {
-        "deps": attr.label_list(
-            providers = ["proto"],
-            aspects = [aspect_],
-            mandatory = True,
-        ),
-        "transport": attr.label_list(
-            providers = [JavaInfo],
-            default = ["//java_grpc_library:platform_default_transport"],
-        ),
-    }
+    return struct(
+        proto_java = java_info,
+        providers = [
+            java_info,
+            DefaultInfo(
+                files = depset(transitive = [dep[_GrpcAspectInfo].jars for dep in ctx.attr.deps]),
+                runfiles = ctx.runfiles(files = java_info.transitive_runtime_jars.to_list()),
+            ),
+        ],
+    )
 
 def _grpc_rule(aspect_):
-    # TODO: see if i can create/return the aspect here too..
-
     return rule(
-        _impl,
+        _rule_impl,
         attrs = {
             "deps": attr.label_list(
                 providers = ["proto"],
@@ -55,21 +40,9 @@ def _grpc_rule(aspect_):
                 default = ["//java_grpc_library:platform_default_transport"],
             ),
         },
-        provides = [JavaInfo],
+        provides = ["proto_java", JavaInfo],
     )
 
 java_grpc_library = _grpc_rule(_java_grpc_aspect)
 
 java_lite_grpc_library = _grpc_rule(_java_lite_grpc_aspect)
-
-#java_grpc_library = rule(
-#    _impl,
-#    attrs = _grpc_rule_attrs(_java_grpc_aspect),
-#    provides = [JavaInfo],
-#)
-#
-#java_lite_grpc_library = rule(
-#    _impl,
-#    attrs = _grpc_rule_attrs(_java_lite_grpc_aspect),
-#    provides = [JavaInfo],
-#)
