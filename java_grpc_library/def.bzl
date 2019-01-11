@@ -40,6 +40,8 @@ def _attrs(aspect_):
     }
 
 def _grpc_rule(aspect_):
+    # TODO: see if i can create/return the aspect here too..
+
     return rule(
         _impl,
         attrs = {
