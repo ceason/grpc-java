@@ -5,7 +5,7 @@ load(
     _java_lite_grpc_aspect = "java_lite_grpc_aspect",
 )
 
-def _rule_impl(ctx):
+def _impl(ctx):
     # exports come from the aspect's compiler, are the same for all deps
     # so we only need to grab one
     exports = ctx.attr.deps[0][_GrpcAspectInfo].exports
@@ -26,7 +26,7 @@ def _rule_impl(ctx):
         ),
     ]
 
-def _rule_attrs(aspect_):
+def _attrs(aspect_):
     return {
         "deps": attr.label_list(
             providers = ["proto"],
@@ -39,14 +39,35 @@ def _rule_attrs(aspect_):
         ),
     }
 
-java_grpc_library = rule(
-    _rule_impl,
-    attrs = _rule_attrs(_java_grpc_aspect),
-    provides = [JavaInfo],
-)
+def _grpc_rule(aspect_):
+    return rule(
+        _impl,
+        attrs = {
+            "deps": attr.label_list(
+                providers = ["proto"],
+                aspects = [aspect_],
+                mandatory = True,
+            ),
+            "transport": attr.label_list(
+                providers = [JavaInfo],
+                default = ["//java_grpc_library:platform_default_transport"],
+            ),
+        },
+        provides = [JavaInfo],
+    )
 
-java_lite_grpc_library = rule(
-    _rule_impl,
-    attrs = _rule_attrs(_java_lite_grpc_aspect),
-    provides = [JavaInfo],
-)
+java_grpc_library = _grpc_rule(_java_grpc_aspect)
+
+java_lite_grpc_library = _grpc_rule(_java_lite_grpc_aspect)
+
+#java_grpc_library = rule(
+#    _impl,
+#    attrs = _grpc_rule_attrs(_java_grpc_aspect),
+#    provides = [JavaInfo],
+#)
+#
+#java_lite_grpc_library = rule(
+#    _impl,
+#    attrs = _grpc_rule_attrs(_java_lite_grpc_aspect),
+#    provides = [JavaInfo],
+#)
