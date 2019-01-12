@@ -4,8 +4,16 @@ _GrpcAspectInfo = provider(
     fields = {
         "exports": "List of JavaInfo targets to export from the consuming rule",
         "jars": "Depset<File> of compiled jars",
+        "importmap": "(preorder)Depset[Tuple[Importpath,File]] of transitive protos",
+        "imports": "(preorder)Depset[File] of transitive protos",
     },
 )
+
+_IMPORTS_DEPSET_ORDER = "preorder"
+
+def _importmap_args(import_file_tuple):
+    i, f = import_file_tuple
+    return "-I%s=%s" % (i, f.path)
 
 def _aspect_impl(target, ctx):
     # proto_info = target[ProtoInfo] # <- update provider when ProtoInfo is a real thing
@@ -23,6 +31,14 @@ def _aspect_impl(target, ctx):
                     dep[_GrpcAspectInfo].jars
                     for dep in ctx.rule.attr.deps
                 ]),
+                importmap = depset(transitive = [
+                    dep[_GrpcAspectInfo].importmap
+                    for dep in ctx.rule.attr.deps
+                ]),
+                imports = depset(transitive = [
+                    dep[_GrpcAspectInfo].imports
+                    for dep in ctx.rule.attr.deps
+                ]),
             )],
         )
 
@@ -30,17 +46,34 @@ def _aspect_impl(target, ctx):
     grpc_srcs = ctx.actions.declare_file("%s/%s-grpc-sources.jar" % (compiler.path_fragment, ctx.rule.attr.name))
     compiled_jar = ctx.actions.declare_file("%s/%s.jar" % (compiler.path_fragment, ctx.rule.attr.name))
 
-    descriptors = depset(
-        direct = [proto_info.direct_descriptor_set],
-        transitive = [proto_info.transitive_descriptor_sets],
-    )
+    # Tuples of [ImportedName => File]
+    direct_importmap = []
+    proto_files = []
+    prefix = proto_info.proto_source_root + "/"
+    for f in proto_info.direct_sources:
+        imported_name = f.short_path
+        if f.short_path.startswith(prefix):
+            imported_name = imported_name[len(prefix):]
+        direct_importmap += [(imported_name, f)]
+        proto_files += [f]
+
+    # create depsets for use in compilation action & to output via provider
+    importmap = depset(direct = direct_importmap, transitive = [
+        dep[_GrpcAspectInfo].importmap
+        for dep in ctx.rule.attr.deps
+    ], order = _IMPORTS_DEPSET_ORDER)
+    imports = depset(direct = proto_files, transitive = [
+        dep[_GrpcAspectInfo].imports
+        for dep in ctx.rule.attr.deps
+    ], order = _IMPORTS_DEPSET_ORDER)
+
     protoc = compiler.protoc.files_to_run.executable
     grpc_plugin = compiler.grpc_plugin.files_to_run.executable
     java_plugin = compiler.java_plugin.files_to_run.executable if compiler.java_plugin else None
 
     # generate java & grpc srcs
     args = ctx.actions.args()
-    args.add_joined("--descriptor_set_in", descriptors, join_with = ":", omit_if_empty = True)
+    args.add_all(importmap, map_each = _importmap_args)
     args.add("--plugin=protoc-gen-grpc-java=%s" % grpc_plugin.path)
     args.add("--grpc-java_out={opts}:{file}".format(
         opts = ",".join(compiler.grpc_plugin_opts),
@@ -57,15 +90,13 @@ def _aspect_impl(target, ctx):
             opts = ",".join(compiler.java_plugin_opts),
             file = java_srcs.path,
         ))
-
-    # TODO: figure out how to handle import_prefix,proto_source_root,strip_import_prefix
-    args.add_all(proto_info.direct_sources)
+    args.add_all(proto_files)
 
     # run the action
     # merge the srcjars
     # compile the merged jar
     ctx.actions.run(
-        inputs = descriptors,
+        inputs = imports,
         outputs = [java_srcs, grpc_srcs],
         executable = protoc,
         arguments = [args],
@@ -114,6 +145,8 @@ def _aspect_impl(target, ctx):
                     for dep in ctx.rule.attr.deps
                 ],
             ),
+            imports = imports,
+            importmap = importmap,
         )],
     )
 
@@ -141,12 +174,13 @@ def _rule_impl(ctx):
         dep[JavaInfo]
         for dep in ctx.attr.deps + exports + ctx.attr.transport
     ])
+    compiled_jars = depset(transitive = [
+        dep[_GrpcAspectInfo].jars
+        for dep in ctx.attr.deps
+    ])
     return [
         java_info,
-        DefaultInfo(
-            files = depset(transitive = [dep[_GrpcAspectInfo].jars for dep in ctx.attr.deps]),
-            runfiles = ctx.runfiles(files = java_info.transitive_runtime_jars.to_list()),
-        ),
+        DefaultInfo(files = compiled_jars),
     ]
 
 def _grpc_rule(aspect_):

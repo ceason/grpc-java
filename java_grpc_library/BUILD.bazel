@@ -3,7 +3,7 @@ load(":compiler.bzl", "grpc_proto_compiler")
 package(default_visibility = ["//visibility:public"])
 
 config_setting(
-    name = "android",
+    name = "android_build",
     constraint_values = [
         "@bazel_tools//platforms:android",
     ],
@@ -12,7 +12,7 @@ config_setting(
 java_library(
     name = "platform_default_transport",
     runtime_deps = select({
-        ":android": ["@io_grpc_grpc_java//okhttp"],
+        ":android_build": ["@io_grpc_grpc_java//okhttp"],
         "//conditions:default": ["@io_grpc_grpc_java//netty"],
     }),
 )
